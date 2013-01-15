@@ -1,0 +1,5 @@
+Gemfile.lock
+*.pyc
+*.class
+*.log
+tmp
