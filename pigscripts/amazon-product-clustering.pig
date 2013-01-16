@@ -7,29 +7,17 @@
  * - OUTPUT_PATH Output path for script data (e.g. s3n://my-output-bucket/amazon-product-clustering)
  */
 
-/**
- * User-Defined Functions (UDFs)
- */
-REGISTER '../udfs/python/amazon-product-clustering.py' USING streaming_python AS amazon-product-clustering;
+REGISTER '../udfs/python/amazon-product-clustering.py' USING streaming_python AS amazon_product_clustering;
+REGISTER '../udfs/python/pig_matrix.py' USING streaming_python AS pig_matrix;
+REGISTER '../udfs/python/pig_graph.py' USING streaming_python AS pig_graph;
 
--- This is an example of loading up input data
-my_input_data = LOAD '$INPUT_PATH' 
-               USING PigStorage('\t') 
-                  AS (field0:chararray, field1:chararray, field2:chararray);
+IMPORT '../macros/matrix.pig';
+IMPORT '../macros/graph.pig';
 
--- This is an example pig operation
-filtered = FILTER my_input_data
-               BY field0 IS NOT NULL;
+edges               =   LOAD '$INPUT_PATH' USING PigStorage('\t') AS (v1: int, v2: int);
+adj_matrix          =   AdjacencyMatrix(edges);
+trans_matrix        =   NormalizeMatrix(adj_matrix, col);
+trans_mat_squared   =   MatrixMultiply(trans_matrix, trans_matrix);
 
--- This is an example call to a python user-defined function
-with_udf_output = FOREACH filtered 
-                 GENERATE field0..field2, 
-                          amazon-product-clustering.example_udf(field0) AS example_udf_field;
-
--- remove any existing data
 rmf $OUTPUT_PATH;
-
--- store the results
-STORE with_udf_output 
- INTO '$OUTPUT_PATH' 
-USING PigStorage('\t');
+STORE trans_mat_squared INTO '$OUTPUT_PATH' USING PigStorage('\t');
