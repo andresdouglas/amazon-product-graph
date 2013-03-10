@@ -3,3 +3,4 @@ Gemfile.lock
 *.class
 *.log
 tmp
+.mortar-local

@@ -35,5 +35,6 @@ returns mat_squared {
 
 DEFINE ElementwisePower(mat, pow)
 returns out {
-	$out	=	FOREACH $mat GENERATE $0, $1, org.apache.pig.piggybank.evaluation.math.POW($2, $pow);
+	$out	=	FOREACH $mat 
+				GENERATE $0, $1, org.apache.pig.piggybank.evaluation.math.POW($2, $pow) AS val;
 };

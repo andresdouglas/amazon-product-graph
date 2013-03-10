@@ -41,6 +41,7 @@ DEFINE MCLIterate(in_mat, inflation_parameter, normalization_axis, epsilon)
 returns out_mat {
 	expansion		=	MatrixSquared($in_mat);
 	inflation		=	ElementwisePower(expansion, $inflation_parameter);
-	pruning			=	FILTER inflation BY val > ($epsilon * $epsilon);
+	pruning			=	FILTER inflation 
+						BY (val > org.apache.pig.piggybank.evaluation.math.POW($epsilon, $inflation_parameter));
 	$out_mat		=	NormalizeMatrix(pruning, '$normalization_axis');
 };

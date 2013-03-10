@@ -38,7 +38,7 @@ iteration_6 			=	MCLIterate(iteration_5, $INFLATION_PARAMETER, '$NORMALIZATION_A
 iteration_7 			=	MCLIterate(iteration_6, $INFLATION_PARAMETER, '$NORMALIZATION_AXIS', $EPSILON);
 */
 
-by_nonnormal_axis		=	GROUP iteration_7 BY ('$NORMALIZATION_AXIS' == 'col'? 'row' : 'col');
+by_nonnormal_axis		=	GROUP iteration_3 BY ('$NORMALIZATION_AXIS' == 'col'? row : col);
 clusters_with_dups		=	FOREACH by_nonnormal_axis GENERATE $1.$NORMALIZATION_AXIS AS cluster;
 clusters_dups_ordered	=	FOREACH clusters_with_dups {
 								ordered = ORDER cluster BY $0 ASC;
@@ -59,7 +59,7 @@ clusters_out			=	FOREACH clusters_regrouped GENERATE
 stats					=	FOREACH (GROUP clusters_out ALL)
 							GENERATE COUNT($1), AVG($1.num_items);
 
-debug					=	VisualizeMatrix(iteration_7, '$NORMALIZATION_AXIS');
+debug					=	VisualizeMatrix(iteration_3, '$NORMALIZATION_AXIS');
 
 rmf $OUTPUT_PATH/clusters;
 rmf $OUTPUT_PATH/stats;
