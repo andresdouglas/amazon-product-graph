@@ -28,8 +28,7 @@ returns trans_mat {
 										GENERATE group AS id, COUNT(edges) + 1 AS num_edges;
 
 	self_loops						= 	FOREACH vertices GENERATE id AS from, id AS to;
-	edges_with_self_loops_and_dups	=	UNION $edges, self_loops;
-	edges_with_self_loops			= 	DISTINCT edges_with_self_loops_and_dups;
+	edges_with_self_loops			=	UNION $edges, self_loops;
 
 	edges_with_val					=	FOREACH edges_with_self_loops GENERATE *, 1.0 AS val: double;
 	edges_with_vertex_info			=	JOIN edges_with_val BY ('$normalization_axis' == 'col'? $1 : $0), vertices BY $0;
