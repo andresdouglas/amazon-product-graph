@@ -6,11 +6,10 @@
 -- %default EDGES_INPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/cathedral-edges'
 -- %default EDGES_INPUT_PATH 's3n://jpacker-dev/amazon_products/books_graph/edges'
 
--- %default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites_clustering'
-%default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/cathedral_clustering'
+%default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites_clustering'
+-- %default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/cathedral_clustering'
 -- %default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/books_graph/clustering'
 
-%default NORMALIZATION_AXIS 'col'
 %default INFLATION_PARAMETER '2.0'
 %default EPSILON '0.01'
 
@@ -26,20 +25,20 @@ nodes		=	LOAD '$NODES_INPUT_PATH' USING PigStorage()
 edges		=	LOAD '$EDGES_INPUT_PATH' USING PigStorage() 
 				AS (from: chararray, to: chararray);
 
-trans_mat 	= 	TransitionMatrixWithSelfLoops(edges, '$NORMALIZATION_AXIS');
+trans_mat 	= 	TransitionMatrixWithSelfLoops(edges);
 
-iteration_1 			=	MCLIterate(trans_mat, $INFLATION_PARAMETER, '$NORMALIZATION_AXIS', $EPSILON);
-iteration_2 			=	MCLIterate(iteration_1, $INFLATION_PARAMETER, '$NORMALIZATION_AXIS', $EPSILON);
-iteration_3 			=	MCLIterate(iteration_2, $INFLATION_PARAMETER, '$NORMALIZATION_AXIS', $EPSILON);
+iteration_1 			=	MCLIterate(trans_mat, $INFLATION_PARAMETER, $EPSILON);
+iteration_2 			=	MCLIterate(iteration_1, $INFLATION_PARAMETER, $EPSILON);
+iteration_3 			=	MCLIterate(iteration_2, $INFLATION_PARAMETER, $EPSILON);
 /*
-iteration_4 			=	MCLIterate(iteration_3, $INFLATION_PARAMETER, '$NORMALIZATION_AXIS', $EPSILON);
-iteration_5 			=	MCLIterate(iteration_4, $INFLATION_PARAMETER, '$NORMALIZATION_AXIS', $EPSILON);
-iteration_6 			=	MCLIterate(iteration_5, $INFLATION_PARAMETER, '$NORMALIZATION_AXIS', $EPSILON);
-iteration_7 			=	MCLIterate(iteration_6, $INFLATION_PARAMETER, '$NORMALIZATION_AXIS', $EPSILON);
+iteration_4 			=	MCLIterate(iteration_3, $INFLATION_PARAMETER, $EPSILON);
+iteration_5 			=	MCLIterate(iteration_4, $INFLATION_PARAMETER, $EPSILON);
+iteration_6 			=	MCLIterate(iteration_5, $INFLATION_PARAMETER, $EPSILON);
+iteration_7 			=	MCLIterate(iteration_6, $INFLATION_PARAMETER, $EPSILON);
 */
 
-by_nonnormal_axis		=	GROUP iteration_3 BY ('$NORMALIZATION_AXIS' == 'col'? row : col);
-clusters_with_dups		=	FOREACH by_nonnormal_axis GENERATE $1.$NORMALIZATION_AXIS AS cluster;
+by_row					=	GROUP iteration_3 BY row;
+clusters_with_dups		=	FOREACH by_row GENERATE $1.col AS cluster;
 clusters_dups_ordered	=	FOREACH clusters_with_dups {
 								ordered = ORDER cluster BY $0 ASC;
 								GENERATE ordered AS cluster;
@@ -59,7 +58,7 @@ clusters_out			=	FOREACH clusters_regrouped GENERATE
 stats					=	FOREACH (GROUP clusters_out ALL)
 							GENERATE COUNT($1), AVG($1.num_items);
 
-debug					=	VisualizeMatrix(iteration_3, '$NORMALIZATION_AXIS');
+debug					=	VisualizeMatrix(iteration_3, 'col');
 
 rmf $OUTPUT_PATH/clusters;
 rmf $OUTPUT_PATH/stats;
