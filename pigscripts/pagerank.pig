@@ -1,14 +1,18 @@
-%default NODES_INPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites-nodes'
+-- %default NODES_INPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites-nodes'
 -- %default NODES_INPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/cathedral-nodes'
 -- %default NODES_INPUT_PATH 's3n://jpacker-dev/amazon_products/books_graph/nodes'
 
-%default EDGES_INPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites-edges'
+-- %default EDGES_INPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites-edges'
 -- %default EDGES_INPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/cathedral-edges'
 -- %default EDGES_INPUT_PATH 's3n://jpacker-dev/amazon_products/books_graph/edges'
 
-%default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites_pagerank'
+-- %default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites_pagerank'
 -- %default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/fixtures/kites_pagerank'
 -- %default OUTPUT_PATH 's3n://jpacker-dev/amazon_products/books_graph/pagerank'
+
+%default NODES_INPUT_PATH '/Users/jpacker/code/test/amazon_products/sample/nodes_100k'
+%default EDGES_INPUT_PATH '/Users/jpacker/code/test/amazon_products/sample/edges_1m'
+%default OUTPUT_PATH '/Users/jpacker/code/test/amazon_products/output/pagerank'
 
 %default DAMPING_FACTOR '0.85'
 
