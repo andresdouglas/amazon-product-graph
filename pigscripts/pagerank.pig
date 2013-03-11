@@ -15,34 +15,34 @@
 IMPORT '../macros/matrix.pig';
 IMPORT '../macros/graph.pig';
 
-nodes			=	LOAD '$NODES_INPUT_PATH' USING PigStorage() 
-					AS (asin: chararray, title: chararray);
-					--	AS (asin: chararray, title: chararray, maker: chararray, 
-				    --		price: float, rating: float, raters: int);
-vertices		=	FOREACH nodes GENERATE asin;
-edges			=	LOAD '$EDGES_INPUT_PATH' USING PigStorage() 
-					AS (from: chararray, to: chararray);
+nodes               =   LOAD '$NODES_INPUT_PATH' USING PigStorage() 
+                        AS (asin: chararray, title: chararray);
+                        --    AS (asin: chararray, title: chararray, maker: chararray, 
+                        --        price: float, rating: float, raters: int);
+edges               =   LOAD '$EDGES_INPUT_PATH' USING PigStorage() 
+                        AS (from: chararray, to: chararray);
 
-google_mat		=	GoogleMatrix(vertices, edges, $DAMPING_FACTOR);
-debug			=	VisualizeMatrix(google_mat, 'col');
+vertices            =   FOREACH nodes GENERATE asin;
+num_vertices        =   FOREACH (GROUP vertices ALL) GENERATE COUNT(vertices) AS N;
+start_vec           =   FOREACH vertices 
+                        GENERATE asin AS i, 1.0 / num_vertices.N AS val;
 
-num_vertices	=	FOREACH (GROUP vertices ALL) GENERATE COUNT(vertices) AS N;
-start_vec		=	FOREACH vertices 
-					GENERATE asin AS row, 1 AS col, 1.0 / num_vertices.N AS val;
+trans_mat           =   TransitionMatrix(edges);
+damped_trans_mat    =   MatrixScalarProduct(trans_mat, $DAMPING_FACTOR);
 
-iteration_1		=	MatrixProduct(google_mat, start_vec);
-iteration_2		=	MatrixProduct(google_mat, iteration_1);
-iteration_3		=	MatrixProduct(google_mat, iteration_2);
+iteration_1         =   PagerankIterate(start_vec, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
+iteration_2         =   PagerankIterate(iteration_1, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
+iteration_3         =   PagerankIterate(iteration_2, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
 
-pageranks		=	FOREACH iteration_3 GENERATE row AS asin, val AS pagerank;
-pagerank_sum	=	FOREACH (GROUP pageranks ALL) 
-					GENERATE SUM(pageranks.pagerank) AS sum;
+pageranks           =   FOREACH iteration_3 GENERATE i AS asin, val AS pagerank;
+pagerank_sum        =   FOREACH (GROUP pageranks ALL) 
+                        GENERATE SUM(pageranks.pagerank) AS sum;
 
 -- renormalize to mitigate accumulated numerical error
-renormalized	=	FOREACH pageranks 
-					GENERATE asin, pagerank / pagerank_sum.sum AS pagerank;
-with_titles		=	JOIN renormalized BY asin, nodes BY asin;
-pageranks_out	=	FOREACH with_titles GENERATE $0, $1, nodes::title;
+renormalized        =   FOREACH pageranks 
+                        GENERATE asin, pagerank / pagerank_sum.sum AS pagerank;
+with_titles         =   JOIN renormalized BY asin, nodes BY asin;
+pageranks_out       =   FOREACH with_titles GENERATE $0, $1, nodes::title;
 
 rmf $OUTPUT_PATH/pageranks;
 rmf $OUTPUT_PATH/pagerank_sum;

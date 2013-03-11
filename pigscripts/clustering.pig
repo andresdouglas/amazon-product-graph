@@ -19,38 +19,38 @@ DEFINE Enumerate datafu.pig.bags.Enumerate('1');
 IMPORT '../macros/matrix.pig';
 IMPORT '../macros/graph.pig';
 
-nodes		=	LOAD '$NODES_INPUT_PATH' USING PigStorage() 
-				AS (asin: chararray, title: chararray);
-				-- AS (asin: chararray, title: chararray, maker: chararray, price: float, rating: float, raters: int);
-edges		=	LOAD '$EDGES_INPUT_PATH' USING PigStorage() 
-				AS (from: chararray, to: chararray);
+nodes       =   LOAD '$NODES_INPUT_PATH' USING PigStorage() 
+                AS (asin: chararray, title: chararray);
+                -- AS (asin: chararray, title: chararray, maker: chararray, price: float, rating: float, raters: int);
+edges       =   LOAD '$EDGES_INPUT_PATH' USING PigStorage() 
+                AS (from: chararray, to: chararray);
 
-trans_mat 	= 	TransitionMatrixWithSelfLoops(edges);
+trans_mat           =   TransitionMatrixWithSelfLoops(edges);
 
-iteration_1 			=	MCLIterate(trans_mat, $INFLATION_PARAMETER, $EPSILON);
-iteration_2 			=	MCLIterate(iteration_1, $INFLATION_PARAMETER, $EPSILON);
-iteration_3 			=	MCLIterate(iteration_2, $INFLATION_PARAMETER, $EPSILON);
+iteration_1         =   MCLIterate(trans_mat, $INFLATION_PARAMETER, $EPSILON);
+iteration_2         =   MCLIterate(iteration_1, $INFLATION_PARAMETER, $EPSILON);
+iteration_3         =   MCLIterate(iteration_2, $INFLATION_PARAMETER, $EPSILON);
 /*
-iteration_4 			=	MCLIterate(iteration_3, $INFLATION_PARAMETER, $EPSILON);
-iteration_5 			=	MCLIterate(iteration_4, $INFLATION_PARAMETER, $EPSILON);
-iteration_6 			=	MCLIterate(iteration_5, $INFLATION_PARAMETER, $EPSILON);
-iteration_7 			=	MCLIterate(iteration_6, $INFLATION_PARAMETER, $EPSILON);
+iteration_4         =   MCLIterate(iteration_3, $INFLATION_PARAMETER, $EPSILON);
+iteration_5         =   MCLIterate(iteration_4, $INFLATION_PARAMETER, $EPSILON);
+iteration_6         =   MCLIterate(iteration_5, $INFLATION_PARAMETER, $EPSILON);
+iteration_7         =   MCLIterate(iteration_6, $INFLATION_PARAMETER, $EPSILON);
 */
 
-enumerated_clusters		=	GetEnumeratedClustersFromMCLResult(iteration_3);
+enumerated_clusters =   GetEnumeratedClustersFromMCLResult(iteration_3);
 
-clusters_flattened		=	FOREACH enumerated_clusters GENERATE i, FLATTEN(cluster) AS asin;
-with_titles				=	JOIN clusters_flattened BY asin, nodes BY asin;
-clusters_regrouped		=	GROUP with_titles BY i;
-clusters_out			=	FOREACH clusters_regrouped GENERATE 
-								group AS cluster_idx,
-								COUNT($1) AS num_items,
-								$1.($1, $3) AS items;
+clusters_flattened  =   FOREACH enumerated_clusters GENERATE i, FLATTEN(cluster) AS asin;
+with_titles         =   JOIN clusters_flattened BY asin, nodes BY asin;
+clusters_regrouped  =   GROUP with_titles BY i;
+clusters_out        =   FOREACH clusters_regrouped GENERATE 
+                                group AS cluster_idx,
+                                COUNT($1) AS num_items,
+                                $1.($1, $3) AS items;
 
-stats					=	FOREACH (GROUP clusters_out ALL)
-							GENERATE COUNT($1), AVG($1.num_items);
+stats               =   FOREACH (GROUP clusters_out ALL)
+                        GENERATE COUNT($1), AVG($1.num_items);
 
--- debug				=	VisualizeMatrix(iteration_3, 'col');
+-- debug            =   VisualizeMatrix(iteration_3, 'col');
 
 rmf $OUTPUT_PATH/clusters;
 rmf $OUTPUT_PATH/stats;
