@@ -52,3 +52,21 @@ returns out_mat {
 						BY (val > org.apache.pig.piggybank.evaluation.math.POW($epsilon, $inflation_parameter));
 	$out_mat		=	NormalizeMatrix(pruning, 'col');
 };
+
+/*
+ * Requires Enumerate udf alias to be defined,
+ * ex. DEFINE Enumerate datafu.pig.bags.Enumerate('1')
+ */
+DEFINE GetEnumeratedClustersFromMCLResult(mcl_result)
+returns enumerated_clusters {
+	by_row					=	GROUP $mcl_result BY $0;
+	clusters_with_dups		=	FOREACH by_row GENERATE $1.$1 AS cluster;
+	clusters_dups_ordered	=	FOREACH clusters_with_dups {
+									ordered = ORDER cluster BY $0 ASC;
+									GENERATE ordered AS cluster;
+								}
+	clusters				=	DISTINCT clusters_dups_ordered;
+
+	$enumerated_clusters	=	FOREACH (GROUP clusters ALL)
+								GENERATE FLATTEN(Enumerate(clusters)) AS (cluster, i);
+};

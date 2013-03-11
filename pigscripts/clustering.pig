@@ -37,19 +37,11 @@ iteration_6 			=	MCLIterate(iteration_5, $INFLATION_PARAMETER, $EPSILON);
 iteration_7 			=	MCLIterate(iteration_6, $INFLATION_PARAMETER, $EPSILON);
 */
 
-by_row					=	GROUP iteration_3 BY row;
-clusters_with_dups		=	FOREACH by_row GENERATE $1.col AS cluster;
-clusters_dups_ordered	=	FOREACH clusters_with_dups {
-								ordered = ORDER cluster BY $0 ASC;
-								GENERATE ordered AS cluster;
-							}
-clusters				=	DISTINCT clusters_dups_ordered;
+enumerated_clusters		=	GetEnumeratedClustersFromMCLResult(iteration_3);
 
-clusters_enumerated		=	FOREACH (GROUP clusters ALL)
-							GENERATE FLATTEN(Enumerate(clusters)) AS (cluster, idx);
-clusters_flattened		=	FOREACH clusters_enumerated GENERATE idx, FLATTEN(cluster) AS asin;
+clusters_flattened		=	FOREACH enumerated_clusters GENERATE i, FLATTEN(cluster) AS asin;
 with_titles				=	JOIN clusters_flattened BY asin, nodes BY asin;
-clusters_regrouped		=	GROUP with_titles BY idx;
+clusters_regrouped		=	GROUP with_titles BY i;
 clusters_out			=	FOREACH clusters_regrouped GENERATE 
 								group AS cluster_idx,
 								COUNT($1) AS num_items,
@@ -58,11 +50,11 @@ clusters_out			=	FOREACH clusters_regrouped GENERATE
 stats					=	FOREACH (GROUP clusters_out ALL)
 							GENERATE COUNT($1), AVG($1.num_items);
 
-debug					=	VisualizeMatrix(iteration_3, 'col');
+-- debug				=	VisualizeMatrix(iteration_3, 'col');
 
 rmf $OUTPUT_PATH/clusters;
 rmf $OUTPUT_PATH/stats;
-rmf $OUTPUT_PATH/debug;
+-- rmf $OUTPUT_PATH/debug;
 STORE clusters_out INTO '$OUTPUT_PATH/clusters' USING PigStorage();
 STORE stats INTO '$OUTPUT_PATH/stats' USING PigStorage();
-STORE debug INTO '$OUTPUT_PATH/debug' USING PigStorage();
+-- STORE debug INTO '$OUTPUT_PATH/debug' USING PigStorage();
