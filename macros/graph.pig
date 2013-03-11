@@ -4,7 +4,9 @@
 
 DEFINE TransitionMatrix(edges)
 returns trans_mat {
-	edges_with_val	=	FOREACH $edges GENERATE *, 1.0 AS val: double;
+	edges_with_val	=	FOREACH $edges
+						-- traditionally, col is from, row is to 
+						GENERATE $1 AS row, $0 AS col, 1.0 AS val: double;
 	$trans_mat		=	NormalizeMatrix(edges_with_val, 'col');
 };
 
@@ -22,7 +24,8 @@ returns trans_mat {
 	self_loops						= 	FOREACH vertices GENERATE id AS from, id AS to;
 	edges_with_self_loops			=	UNION $edges, self_loops;
 
-	edges_with_val					=	FOREACH edges_with_self_loops GENERATE *, 1.0 AS val: double;
+	edges_with_val					=	FOREACH edges_with_self_loops 
+										GENERATE $1 AS row, $0 AS col, 1.0 AS val: double;
 	edges_with_vertex_info			=	JOIN edges_with_val BY $1, vertices BY $0;
 	$trans_mat						=	FOREACH edges_with_vertex_info 
 										GENERATE $0, $1, val / (double)vertices::num_inbound_edges AS prob;
@@ -30,7 +33,8 @@ returns trans_mat {
 
 DEFINE GoogleMatrix(verts, edges, damping)
 returns google_mat {
-	edges_with_val		=	FOREACH $edges GENERATE *, 1.0 AS val: double;
+	edges_with_val		=	FOREACH $edges 
+							GENERATE $1 AS row, $0 AS col, 1.0 AS val: double;
 	edges_normal		=	NormalizeMatrix(edges_with_val, 'col');
 	edges_terms			=	MatrixScalarProduct(edges_normal, $damping);
 
