@@ -19,7 +19,7 @@ returns trans_mat {
     -- ignores vertices with no inbound links, since the probability of being at them
     -- would be driven to zero by the iteration anyway
     vertices                =   FOREACH (GROUP $edges BY $1) 
-                                GENERATE group AS id, COUNT(edges) + 1 AS num_inbound_edges;
+                                GENERATE group AS id, COUNT($edges) + 1 AS num_inbound_edges;
 
     self_loops              =   FOREACH vertices GENERATE id AS from, id AS to;
     edges_with_self_loops   =   UNION $edges, self_loops;
@@ -31,7 +31,15 @@ returns trans_mat {
                                 GENERATE $0, $1, val / (double)vertices::num_inbound_edges AS prob;
 };
 
-DEFINE PagerankIterate(vec, damped_trans_mat, num_vertices_rel, damping_factor)
+DEFINE PagerankIterate(vec, damped_trans_mat, num_vertices, damping_factor)
+returns out_vec {
+    product     =   MatrixColumnVectorProduct($damped_trans_mat, $vec);
+    $out_vec    =   FOREACH product GENERATE 
+                        $0 AS i, 
+                        $1 + ((1.0 - $damping_factor) / $num_vertices) AS val;
+};
+
+DEFINE PagerankIterate2(vec, damped_trans_mat, num_vertices_rel, damping_factor)
 returns out_vec {
     product     =   MatrixColumnVectorProduct($damped_trans_mat, $vec);
     $out_vec    =   FOREACH product GENERATE 
@@ -48,20 +56,22 @@ returns out_mat {
     $out_mat    =   NormalizeMatrix(pruning, 'col');
 };
 
-/*
- * Requires Enumerate udf alias to be defined,
- * ex. DEFINE Enumerate datafu.pig.bags.Enumerate('1')
- */
-DEFINE GetEnumeratedClustersFromMCLResult(mcl_result)
-returns enumerated_clusters {
+DEFINE RegularizedMCLIterate(in_mat, trans_mat, inflation_parameter, epsilon)
+returns out_mat {
+    expansion   =   MatrixProduct($in_mat, $trans_mat);
+    inflation   =   MatrixElementwisePower(expansion, $inflation_parameter);
+    pruning     =   FILTER inflation 
+                    BY (val > org.apache.pig.piggybank.evaluation.math.POW($epsilon, $inflation_parameter));
+    $out_mat    =   NormalizeMatrix(pruning, 'col');
+};
+
+DEFINE GetClustersFromMCLResult(mcl_result)
+returns clusters {
     by_row                  =   GROUP $mcl_result BY $0;
     clusters_with_dups      =   FOREACH by_row GENERATE $1.$1 AS cluster;
     clusters_dups_ordered   =   FOREACH clusters_with_dups {
                                     ordered = ORDER cluster BY $0 ASC;
                                     GENERATE ordered AS cluster;
                                 }
-    clusters                =   DISTINCT clusters_dups_ordered;
-
-    $enumerated_clusters    =   FOREACH (GROUP clusters ALL)
-                                GENERATE FLATTEN(Enumerate(clusters)) AS (cluster, i);
+    $clusters                =   DISTINCT clusters_dups_ordered;
 };

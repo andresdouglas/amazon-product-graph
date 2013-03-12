@@ -17,7 +17,9 @@ nodes       =   LOAD '$NODES_INPUT_PATH' USING PigStorage()
 
 mcl_result  =   LOAD '$MCL_RESULT_PATH' USING PigStorage() AS (row: chararray, col: chararray, val: double);
 
-enumerated_clusters =   GetEnumeratedClustersFromMCLResult(mcl_result);
+clusters            =   GetClustersFromMCLResult(mcl_result);
+enumerated_clusters =   FOREACH (GROUP clusters ALL)
+                        GENERATE FLATTEN(Enumerate(clusters)) AS (cluster, i);
 
 clusters_with_size  =   FOREACH enumerated_clusters
                         GENERATE i, COUNT(cluster) AS size, cluster AS items;

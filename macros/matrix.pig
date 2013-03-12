@@ -52,7 +52,7 @@ returns product {
 DEFINE MatrixColumnVectorProduct(M, v)
 returns product {
     -- v is one-dimensional, so it should fit into memory
-    joined      =   JOIN $M BY $1, $v BY $0 USING 'replicated';
+    joined      =   JOIN $M BY $1, $v BY $0;
     terms       =   FOREACH joined GENERATE $0 AS i, $2 * $4 AS val;
     by_cell     =   GROUP terms BY i;
     $product    =   FOREACH by_cell 
@@ -80,11 +80,22 @@ returns mat_squared {
 DEFINE NormalizeMatrix(mat, axis)
 returns normalized {
     grouped         =   GROUP $mat BY ('$axis' == 'col'? $1 : $0);
+    totals          =   FOREACH grouped GENERATE group, SUM($1.$2) AS total, $1 AS cells;
+    flattened       =   FOREACH totals GENERATE FLATTEN(cells), total;
+    $normalized     =   FOREACH flattened
+                        GENERATE $0 AS row, $1 AS col, $2 / (double)$3 AS val;
+};
+
+/*
+DEFINE NormalizeMatrix(mat, axis)
+returns normalized {
+    grouped         =   GROUP $mat BY ('$axis' == 'col'? $1 : $0);
     totals          =   FOREACH grouped GENERATE group, SUM($1.$2) AS total;
     with_totals     =   JOIN $mat BY ('$axis' == 'col'? $1 : $0), totals BY group;
     $normalized     =   FOREACH with_totals
                         GENERATE $0 AS row, $1 AS col, $2 / (double)totals::total AS val;
 };
+*/
 
 -- axis: 'row' or 'col'
 DEFINE VisualizeMatrix(mat, axis) 

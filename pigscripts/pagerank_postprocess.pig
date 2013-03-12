@@ -17,7 +17,8 @@ pagerank_sum        =   FOREACH (GROUP pageranks ALL)
 renormalized        =   FOREACH pageranks 
                         GENERATE asin, pagerank / pagerank_sum.sum AS pagerank;
 with_titles         =   JOIN renormalized BY asin, nodes BY asin;
-pageranks_out       =   FOREACH with_titles GENERATE $0, $1, nodes::title;
+ordered             =   ORDER with_titles BY pagerank DESC;
+pageranks_out       =   FOREACH ordered GENERATE $0, $1, nodes::title;
 
 rmf $OUTPUT_PATH;
 STORE pageranks_out INTO '$OUTPUT_PATH' USING PigStorage();

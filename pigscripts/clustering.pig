@@ -30,7 +30,11 @@ nodes       =   LOAD '$NODES_INPUT_PATH' USING PigStorage()
 edges       =   LOAD '$EDGES_INPUT_PATH' USING PigStorage() 
                 AS (from: chararray, to: chararray);
 
-trans_mat           =   TransitionMatrixWithSelfLoops(edges);
+edge_destinations   =   GROUP edges BY to;
+internal_vertices   =   FILTER edge_destinations BY (group is not null);
+internal_edges      =   FOREACH internal_vertices GENERATE FLATTEN(edges);
+
+trans_mat           =   TransitionMatrixWithSelfLoops(internal_edges);
 
 iteration_1         =   MCLIterate(trans_mat, $INFLATION_PARAMETER, $EPSILON);
 iteration_2         =   MCLIterate(iteration_1, $INFLATION_PARAMETER, $EPSILON);
@@ -43,7 +47,9 @@ iteration_8         =   MCLIterate(iteration_7, $INFLATION_PARAMETER, $EPSILON);
 iteration_9         =   MCLIterate(iteration_8, $INFLATION_PARAMETER, $EPSILON);
 iteration_10        =   MCLIterate(iteration_9, $INFLATION_PARAMETER, $EPSILON);
 
-enumerated_clusters =   GetEnumeratedClustersFromMCLResult(iteration_10);
+clusters            =   GetClustersFromMCLResult(iteration_10);
+enumerated_clusters =   FOREACH (GROUP clusters ALL)
+                        GENERATE FLATTEN(Enumerate(clusters)) AS (cluster, i);
 
 clusters_with_size  =   FOREACH enumerated_clusters
                         GENERATE i, COUNT(cluster) AS size, cluster AS items;
