@@ -16,7 +16,7 @@
 
 %default INFLATION_PARAMETER '1.5'
 %default EPSILON '0.01'
-%default MIN_ACCEPTABLE_CLUSTER_SIZE '20'
+%default MIN_ACCEPTABLE_CLUSTER_SIZE '0'
 
 REGISTER 's3n://jpacker-dev/jar/datafu-0.0.9.jar';
 DEFINE Enumerate datafu.pig.bags.Enumerate('1');

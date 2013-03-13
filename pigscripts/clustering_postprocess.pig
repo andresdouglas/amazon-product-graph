@@ -1,4 +1,6 @@
 /*
+ * Parameters used:
+ *
  * NODES_INPUT_PATH
  * MCL_RESULT_PATH
  * CLUSTERS_OUTPUT_PATH

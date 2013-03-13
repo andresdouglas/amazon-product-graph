@@ -86,17 +86,6 @@ returns normalized {
                         GENERATE $0 AS row, $1 AS col, $2 / (double)$3 AS val;
 };
 
-/*
-DEFINE NormalizeMatrix(mat, axis)
-returns normalized {
-    grouped         =   GROUP $mat BY ('$axis' == 'col'? $1 : $0);
-    totals          =   FOREACH grouped GENERATE group, SUM($1.$2) AS total;
-    with_totals     =   JOIN $mat BY ('$axis' == 'col'? $1 : $0), totals BY group;
-    $normalized     =   FOREACH with_totals
-                        GENERATE $0 AS row, $1 AS col, $2 / (double)totals::total AS val;
-};
-*/
-
 -- axis: 'row' or 'col'
 DEFINE VisualizeMatrix(mat, axis) 
 returns vis {
