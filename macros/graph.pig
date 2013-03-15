@@ -1,5 +1,6 @@
 /*
- * Required matrix.pig macros to be imported.
+ * All macros in this file require the macros from matrix.pig
+ * to have been imported by the calling script
  */
 
 DEFINE TransitionMatrix(edges)
@@ -39,14 +40,9 @@ returns out_vec {
                         $1 + ((1.0 - $damping_factor) / $num_vertices) AS val;
 };
 
-DEFINE PagerankIterate2(vec, damped_trans_mat, num_vertices_rel, damping_factor)
-returns out_vec {
-    product     =   MatrixColumnVectorProduct($damped_trans_mat, $vec);
-    $out_vec    =   FOREACH product GENERATE 
-                        $0 AS i, 
-                        $1 + ((1.0 - $damping_factor) / $num_vertices_rel.$0) AS val;
-};
-
+/*
+ * See http://www.cs.ucsb.edu/~xyan/classes/CS595D-2009winter/MCL_Presentation2.pdf
+ */
 DEFINE MCLIterate(in_mat, inflation_parameter, epsilon)
 returns out_mat {
     expansion   =   MatrixSquared($in_mat);
@@ -56,9 +52,12 @@ returns out_mat {
     $out_mat    =   NormalizeMatrix(pruning, 'col');
 };
 
-DEFINE RegularizedMCLIterate(in_mat, trans_mat, inflation_parameter, epsilon)
+/*
+ * See http://www.cse.ohio-state.edu/~satuluri/satuluri_kdd09_slides.pdf
+ */
+DEFINE RegularizedMCLIterate(in_mat, initial_trans_mat, inflation_parameter, epsilon)
 returns out_mat {
-    expansion   =   MatrixProduct($in_mat, $trans_mat);
+    expansion   =   MatrixProduct($in_mat, $initial_trans_mat);
     inflation   =   MatrixElementwisePower(expansion, $inflation_parameter);
     pruning     =   FILTER inflation 
                     BY (val > org.apache.pig.piggybank.evaluation.math.POW($epsilon, $inflation_parameter));

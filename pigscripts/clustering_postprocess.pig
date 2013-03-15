@@ -9,15 +9,16 @@
 
 REGISTER 's3n://jpacker-dev/jar/datafu-0.0.9.jar';
 DEFINE Enumerate datafu.pig.bags.Enumerate('1');
+DEFINE Quantiles datafu.pig.stats.StreamingQuantile('5'); -- min, 25%, 50%, 75%, max
 
 IMPORT '../macros/matrix.pig';
 IMPORT '../macros/graph.pig';
 
 nodes       =   LOAD '$NODES_INPUT_PATH' USING PigStorage() 
-                AS (asin: chararray, title: chararray);
+                AS (asin: bytearray, title: bytearray);
                 -- AS (asin: chararray, title: chararray, maker: chararray, price: float, rating: float, raters: int);
 
-mcl_result  =   LOAD '$MCL_RESULT_PATH' USING PigStorage() AS (row: chararray, col: chararray, val: double);
+mcl_result  =   LOAD '$MCL_RESULT_PATH' USING PigStorage() AS (row: bytearray, col: bytearray, val: double);
 
 clusters            =   GetClustersFromMCLResult(mcl_result);
 enumerated_clusters =   FOREACH (GROUP clusters ALL)
@@ -35,8 +36,8 @@ clusters_out        =   FOREACH clusters_regrouped GENERATE
                                 COUNT($1) AS size,
                                 $1.($1, $3) AS items;
 
-stats               =   FOREACH (GROUP clusters_out ALL)
-                        GENERATE COUNT($1), AVG($1.size);
+sizes               =   FOREACH clusters_out GENERATE size;
+stats               =   FOREACH (GROUP sizes ALL) GENERATE COUNT($1), Quantiles($1);
 
 rmf $CLUSTERS_OUTPUT_PATH;
 rmf $STATS_OUTPUT_PATH;

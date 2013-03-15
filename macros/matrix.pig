@@ -72,10 +72,6 @@ returns mat_squared {
 -- TODO: determinant
 -- TODO: inverse
 
-/*
- * Other operations
- */
-
 -- axis: 'row' or 'col'
 DEFINE NormalizeMatrix(mat, axis)
 returns normalized {

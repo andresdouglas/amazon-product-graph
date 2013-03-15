@@ -11,7 +11,7 @@ IMPORT '../macros/matrix.pig';
 IMPORT '../macros/graph.pig';
 
 num_verts   =   LOAD '$NUM_VERTICES_INPUT_PATH' USING PigStorage() AS (N: long);
-edges       =   LOAD '$EDGES_INPUT_PATH' USING PigStorage() AS (from: chararray, to: chararray);
+edges       =   LOAD '$EDGES_INPUT_PATH' USING PigStorage() AS (from: bytearray, to: bytearray);
 
 trans_mat   =   TransitionMatrixWithSelfLoops(edges);
 

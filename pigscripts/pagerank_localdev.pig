@@ -19,6 +19,15 @@
 IMPORT '../macros/matrix.pig';
 IMPORT '../macros/graph.pig';
 
+-- controlscript version of this macro takes num_vertices as a parameter
+DEFINE PagerankIterateLocalDev(vec, damped_trans_mat, num_vertices_rel, damping_factor)
+returns out_vec {
+    product     =   MatrixColumnVectorProduct($damped_trans_mat, $vec);
+    $out_vec    =   FOREACH product GENERATE 
+                        $0 AS i, 
+                        $1 + ((1.0 - $damping_factor) / $num_vertices_rel.$0) AS val;
+};
+
 nodes               =   LOAD '$NODES_INPUT_PATH' USING PigStorage() 
                         AS (asin: chararray, title: chararray);
                         --    AS (asin: chararray, title: chararray, maker: chararray, 
@@ -35,9 +44,9 @@ start_vec           =   FOREACH internal_vertices
 trans_mat           =   TransitionMatrix(edges);
 damped_trans_mat    =   MatrixScalarProduct(trans_mat, $DAMPING_FACTOR);
 
-iteration_1         =   PagerankIterate2(start_vec, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
-iteration_2         =   PagerankIterate2(iteration_1, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
-iteration_3         =   PagerankIterate2(iteration_2, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
+iteration_1         =   PagerankIterateLocalDev(start_vec, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
+iteration_2         =   PagerankIterateLocalDev(iteration_1, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
+iteration_3         =   PagerankIterateLocalDev(iteration_2, damped_trans_mat, num_vertices, $DAMPING_FACTOR);
 
 pageranks           =   FOREACH iteration_3 GENERATE i AS asin, val AS pagerank;
 pagerank_sum        =   FOREACH (GROUP pageranks ALL) 
