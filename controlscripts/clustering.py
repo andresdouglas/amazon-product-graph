@@ -20,34 +20,31 @@ def run_script():
     # Specify where the data will come from,
     # and where output data will go after each step
 
-    """
     data_stem = "s3n://jpacker-dev/amazon_products/books_graph/"
-
     num_vertices_input = data_stem + "num_vertices"
     nodes_input = data_stem + "nodes"
     edges_input = data_stem + "edges"
 
-    preprocess_num_vertices_output = data_stem + "clustering/preprocess/num_vertices"
-    preprocess_trans_mat_output = data_stem + "clustering/preprocess/trans_mat"
-    iteration_trans_mat_output_stem = data_stem + "clustering/iteration/trans_mat_"
-    iteration_max_residual_output_stem = data_stem + "clustering/iteration/max_residual_"
-    postprocess_clusters_output = data_stem + "clustering/postprocess/clusters"
-    postprocess_stats_output = data_stem + "clustering/postprocess/stats"
+    output_stem = data_stem + "clustering/"
+    preprocess_num_vertices_output = output_stem + "preprocess/num_vertices"
+    preprocess_trans_mat_output = output_stem + "preprocess/trans_mat"
+    iteration_trans_mat_output_stem = output_stem + "iteration/trans_mat_"
+    postprocess_clusters_output = output_stem + "postprocess/clusters"
+    postprocess_stats_output = output_stem + "postprocess/stats"
+
     """
+    data_stem = "../fake-fixtures/"
+    num_vertices_input = data_stem + "cathedral-num-vertices"
+    nodes_input = data_stem + "cathedral-nodes"
+    edges_input = data_stem + "cathedral-edges"
 
-    data_stem = "s3n://jpacker-dev/amazon_products/fixtures/"
-
-    num_vertices_input = data_stem + "kites-num-vertices"
-    nodes_input = data_stem + "kites-nodes"
-    edges_input = data_stem + "kites-edges"
-
-    preprocess_num_vertices_output = data_stem + "kites_clustering/preprocess/num_vertices"
-    preprocess_trans_mat_output = data_stem + "kites_clustering/preprocess/trans_mat"
-    iteration_trans_mat_output_stem = data_stem + "kites_clustering/iteration/trans_mat_"
-    iteration_max_residual_output_stem = data_stem + "kites_clustering/iteration/max_residual_"
-    postprocess_clusters_output = data_stem + "kites_clustering/postprocess/clusters"
-    postprocess_stats_output = data_stem + "kites_clustering/postprocess/stats"
-    
+    output_stem = data_stem + "cathedral_clustering/"
+    preprocess_num_vertices_output = output_stem + "preprocess/num_vertices"
+    preprocess_trans_mat_output = output_stem + "preprocess/trans_mat"
+    iteration_trans_mat_output_stem = output_stem + "iteration/trans_mat_"
+    postprocess_clusters_output = output_stem + "postprocess/clusters"
+    postprocess_stats_output = output_stem + "postprocess/stats"
+    """
 
     # Preprocessing step:
     #
@@ -67,19 +64,24 @@ def run_script():
 
     # Extract the number of vertices, which we will pass into each iteration as a parameter
     num_vertices = long(str(preprocess_stats.result("num_verts").iterator().next().get(0)))
-
-    # Iteration step:
+    
+    # Extract the number of edges (including inserted self-loops)
+    # We will use this in our convergence metric
+    initial_num_edges = long(str(preprocess_stats.getNumberRecords(preprocess_trans_mat_output)))
+    
+    # Iteration step applying the Markov Clustering operations:
     #
-    # (1) Apply the Markov Clustering operations: expansion, inflation, pruning, and normalization.
-    # (2) Find the maximum column residual = max([max(col) - sum_of_squares(col) for col in matrix])
-    #    
-    # The iteration will produce a new transition matrix at each step;
-    # eventually, these matrices will converge to a "column idempotent" matrix,
-    # meaning that each value in the column will be the same. Subtracting
-    # the sum of the squares of the column values from the maximum column values
-    # is a metric to describe how idempotent a column is. When this passes
-    # below a specified threshold (or we reach the maximum permitted number of iterations)
-    # we stop iterating.
+    # (1) Expansion: square the transition matrix ~= take a step in a random walk
+    # (2) Inflation: take an elementwise power of the matrix ~= strengthen strong connections, weaken weak ones'
+    # (3) Pruning: set small matrix values to zero (since the matrix impl is sparse, this greatly speeds things up)
+    # (4) Normalization: renormalize the matrix columnwise to keep it a valid transition matrix
+    #
+    # I tested several mathematically sensible convergence metrics 
+    # (max of max residual for each col, avg of max residual for each col, col kurtosis)
+    # but none worked very well. So I'm currently just breaking when the number of edges
+    # in an iteration's transition matrix is less than the number of edges in 
+    # the initial transition matrix times a constant multiple, which seems to indicate
+    # that things are settling down.
     #
     # The algorithm has two parameters:
     # (1) The inflation parameter is an exponential factor which determines the cluster size. higher inflation => smaller clusters
@@ -88,33 +90,27 @@ def run_script():
     #     If you run in to performance problems though, raising epsilon will dramatically reduce execution time
     #
     iteration = Pig.compileFromFile("../pigscripts/clustering_iterate.pig")
-    max_num_iterations = 5                  # most graphs should converge after 4-10 iterations
-    num_iterations = 0                      # current iteration count
-    convergence_threshold = 0.01            # stop iterating if max([max(col) - sum_of_squares(col) for col in matrix]) < this
-    last_max_residual = 1.0                 # if the max residual starts increasing instead of decreasing,
-                                            # then the system is diverging and we break
-                                            # (not sure if this is mathematically possible, but it doesn't hurt to be safe)
+    max_num_iterations = 7  # most graphs should converge after 4-10 iterations
+    num_iterations = 0
+
     for i in range(1, max_num_iterations + 1):
         iteration_input = preprocess_trans_mat_output if i == 1 else (iteration_trans_mat_output_stem + str(i-1))
         iteration_output = iteration_trans_mat_output_stem + str(i)
-        max_residual_output = iteration_max_residual_output_stem + str(i)
 
         iteration_bound = iteration.bind({
             "INPUT_PATH": iteration_input,
             "ITERATION_OUTPUT_PATH": iteration_output,
-            "MAX_RESIDUAL_OUTPUT_PATH": max_residual_output,
             "NUM_VERTICES": num_vertices, 
             "INFLATION_PARAMETER": 1.5,
             "EPSILON": 0.01
         })
         iteration_stats = iteration_bound.runSingle()
 
-        num_iterations += 1
-        max_residual = float(str(iteration_stats.result("max_residual").iterator().next().get(0)))
-        if num_iterations >= 5 and (max_residual <= convergence_threshold or max_residual > last_max_residual):
+        num_edges = long(str(iteration_stats.getNumberRecords(iteration_output)))
+        if num_iterations >= 3 and num_edges < (initial_num_edges * 1.05):
             break
         else:
-            last_max_residual = max_residual
+            num_iterations += 1
 
     # Postprocessing step:
     #
