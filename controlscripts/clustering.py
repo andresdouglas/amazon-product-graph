@@ -106,11 +106,10 @@ def run_script():
         })
         iteration_stats = iteration_bound.runSingle()
 
+        num_iterations += 1
         num_edges = long(str(iteration_stats.getNumberRecords(iteration_output)))
         if num_iterations >= 3 and num_edges < (initial_num_edges * 1.05):
             break
-        else:
-            num_iterations += 1
 
     # Postprocessing step:
     #
